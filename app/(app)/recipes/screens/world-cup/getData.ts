@@ -8,8 +8,10 @@ export const dynamic = "force-dynamic";
 const ESPN_SCOREBOARD =
 	"https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard";
 
-// Kickoff times for not-yet-started matches are shown in this timezone.
-const KICKOFF_TZ = "Asia/Dubai";
+// The frame renders server-side (UTC) and can't detect location, so the
+// display timezone is the recipe's `timezone` param. This is the fallback
+// when it's unset or invalid.
+const DEFAULT_TZ = "Asia/Beirut";
 const FETCH_TIMEOUT_MS = 8000;
 const MAX_MATCHES = 8;
 
@@ -28,6 +30,7 @@ export type WorldCupMatch = {
 export type WorldCupData = {
 	title: string;
 	dateLabel: string;
+	updatedLabel: string;
 	matches: WorldCupMatch[];
 	message?: string;
 };
@@ -45,6 +48,15 @@ type EspnEvent = {
 	competitions?: { competitors?: EspnCompetitor[] }[];
 };
 
+function isValidTimeZone(tz: string): boolean {
+	try {
+		new Intl.DateTimeFormat("en-US", { timeZone: tz });
+		return true;
+	} catch {
+		return false;
+	}
+}
+
 function ymd(d: Date): string {
 	const y = d.getUTCFullYear();
 	const m = String(d.getUTCMonth() + 1).padStart(2, "0");
@@ -52,13 +64,12 @@ function ymd(d: Date): string {
 	return `${y}${m}${day}`;
 }
 
-// Date shown in the header, in the frame's timezone (matches kickoff times),
-// e.g. "WED JUN 25".
-function dateHeader(iso: string): string {
+// "WED JUN 25" in the given timezone.
+function dateHeader(iso: string, tz: string): string {
 	const d = new Date(iso);
 	if (Number.isNaN(d.getTime())) return "";
 	const parts = new Intl.DateTimeFormat("en-US", {
-		timeZone: KICKOFF_TZ,
+		timeZone: tz,
 		weekday: "short",
 		month: "short",
 		day: "numeric",
@@ -67,15 +78,20 @@ function dateHeader(iso: string): string {
 	return `${get("weekday")} ${get("month")} ${get("day")}`.toUpperCase();
 }
 
-function kickoffLabel(iso: string): string {
-	const d = new Date(iso);
-	if (Number.isNaN(d.getTime())) return "";
+// "19:00" in the given timezone.
+function timeIn(d: Date, tz: string): string {
 	return new Intl.DateTimeFormat("en-GB", {
-		timeZone: KICKOFF_TZ,
+		timeZone: tz,
 		hour: "2-digit",
 		minute: "2-digit",
 		hour12: false,
 	}).format(d);
+}
+
+function kickoffLabel(iso: string, tz: string): string {
+	const d = new Date(iso);
+	if (Number.isNaN(d.getTime())) return "";
+	return timeIn(d, tz);
 }
 
 function teamCode(c: EspnCompetitor | undefined): string {
@@ -85,7 +101,7 @@ function teamCode(c: EspnCompetitor | undefined): string {
 
 const STATE_ORDER: Record<string, number> = { in: 0, pre: 1, post: 2 };
 
-function toMatch(ev: EspnEvent): WorldCupMatch | null {
+function toMatch(ev: EspnEvent, tz: string): WorldCupMatch | null {
 	const comp = ev.competitions?.[0];
 	const competitors = comp?.competitors ?? [];
 	const home = competitors.find((c) => c.homeAway === "home") ?? competitors[0];
@@ -94,7 +110,7 @@ function toMatch(ev: EspnEvent): WorldCupMatch | null {
 	const state = ev.status?.type?.state ?? "pre";
 	const live = state === "in";
 	let detail = ev.status?.type?.shortDetail ?? "";
-	if (state === "pre") detail = kickoffLabel(ev.date ?? "");
+	if (state === "pre") detail = kickoffLabel(ev.date ?? "", tz);
 	else if (state === "post") detail = "FT";
 	return {
 		home: teamCode(home),
@@ -107,9 +123,9 @@ function toMatch(ev: EspnEvent): WorldCupMatch | null {
 	};
 }
 
-function orderMatches(events: EspnEvent[]): WorldCupMatch[] {
+function orderMatches(events: EspnEvent[], tz: string): WorldCupMatch[] {
 	return events
-		.map(toMatch)
+		.map((ev) => toMatch(ev, tz))
 		.filter((m): m is WorldCupMatch => m !== null)
 		.sort((a, b) => (STATE_ORDER[a.state] ?? 9) - (STATE_ORDER[b.state] ?? 9))
 		.slice(0, MAX_MATCHES);
@@ -128,7 +144,13 @@ async function fetchScoreboard(
 	return data.events ?? [];
 }
 
-export default async function getWorldCupData(): Promise<WorldCupData> {
+export default async function getWorldCupData(params?: {
+	timezone?: string;
+}): Promise<WorldCupData> {
+	const requested = params?.timezone?.trim();
+	const tz = requested && isValidTimeZone(requested) ? requested : DEFAULT_TZ;
+	const updatedLabel = timeIn(new Date(), tz);
+
 	const controller = new AbortController();
 	const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 	try {
@@ -149,25 +171,28 @@ export default async function getWorldCupData(): Promise<WorldCupData> {
 			events = firstDay
 				? ahead.filter((e) => (e.date ?? "").slice(0, 10) === firstDay)
 				: [];
-			if (events[0]?.date) dateLabel = `NEXT · ${dateHeader(events[0].date)}`;
+			if (events[0]?.date)
+				dateLabel = `NEXT · ${dateHeader(events[0].date, tz)}`;
 		} else if (events[0]?.date) {
-			dateLabel = dateHeader(events[0].date);
+			dateLabel = dateHeader(events[0].date, tz);
 		}
 
-		const matches = orderMatches(events);
+		const matches = orderMatches(events, tz);
 		if (matches.length === 0) {
 			return {
 				title: "FIFA WORLD CUP",
 				dateLabel: "",
+				updatedLabel,
 				matches: [],
 				message: "No World Cup matches scheduled.",
 			};
 		}
-		return { title: "FIFA WORLD CUP", dateLabel, matches };
+		return { title: "FIFA WORLD CUP", dateLabel, updatedLabel, matches };
 	} catch (_error) {
 		return {
 			title: "FIFA WORLD CUP",
 			dateLabel: "",
+			updatedLabel,
 			matches: [],
 			message: "World Cup scores unavailable right now.",
 		};

@@ -7,7 +7,13 @@ import type { RecipeDefinition } from "@/lib/recipes/types";
 import { PreSatori } from "@/utils/pre-satori";
 import getWorldCupData, { type WorldCupData } from "./getData";
 
-export const paramsSchema = z.object({});
+export const paramsSchema = z.object({
+	timezone: z
+		.string()
+		.default("Asia/Beirut")
+		.describe('IANA timezone for match times, e.g. "Asia/Beirut"')
+		.meta({ title: "Timezone" }),
+});
 
 const matchSchema = z.object({
 	home: z.string().default("—"),
@@ -22,6 +28,7 @@ const matchSchema = z.object({
 export const dataSchema = z.object({
 	title: z.string().default("FIFA WORLD CUP"),
 	dateLabel: z.string().default(""),
+	updatedLabel: z.string().default(""),
 	matches: z.array(matchSchema).default([]),
 	message: z.string().optional(),
 });
@@ -34,15 +41,6 @@ type WorldCupProps = Partial<WorldCupData> & {
 const SIDE = 26;
 // Small-caps-ish treatment for the pixel label font.
 const LABEL = { letterSpacing: 2 } as const;
-
-function updatedLabel(): string {
-	return new Intl.DateTimeFormat("en-GB", {
-		timeZone: "Asia/Dubai",
-		hour: "2-digit",
-		minute: "2-digit",
-		hour12: false,
-	}).format(new Date());
-}
 
 // Inverted masthead: a solid black bar with a white logo mark, title, and date.
 function Masthead({ title, dateLabel }: { title: string; dateLabel: string }) {
@@ -94,6 +92,7 @@ function Masthead({ title, dateLabel }: { title: string; dateLabel: string }) {
 export default function WorldCup({
 	title = "FIFA WORLD CUP",
 	dateLabel = "",
+	updatedLabel = "",
 	matches = [],
 	message,
 	width = DEFAULT_IMAGE_WIDTH,
@@ -287,7 +286,7 @@ export default function WorldCup({
 						className="font-geneva9"
 						style={{ display: "flex", fontSize: 15, ...LABEL }}
 					>
-						{`UPDATED ${updatedLabel()} · ESPN`}
+						{updatedLabel ? `UPDATED ${updatedLabel} · ESPN` : "ESPN"}
 					</div>
 				</div>
 			</div>
@@ -308,14 +307,14 @@ export const definition: RecipeDefinition<
 		tags: ["sports", "football", "soccer", "api", "live-data"],
 		author: { name: "byos", github: "byos" },
 		category: "display-components",
-		version: "0.2.0",
+		version: "0.2.1",
 		createdAt: "2026-06-25T00:00:00Z",
 		updatedAt: "2026-06-25T00:00:00Z",
 		renderSettings: { supersample: true },
 	},
 	paramsSchema,
 	dataSchema,
-	getData: async () => getWorldCupData(),
+	getData: async (params) => getWorldCupData(params),
 	Component: ({ width, height, data }) => (
 		<WorldCup {...(data as WorldCupData)} width={width} height={height} />
 	),
