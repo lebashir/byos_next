@@ -39,10 +39,75 @@ type WorldCupProps = Partial<WorldCupData> & {
 };
 
 const SIDE = 26;
-// Small-caps-ish treatment for the pixel label font.
 const LABEL = { letterSpacing: 2 } as const;
 
-// Inverted masthead: a solid black bar with a white logo mark, title, and date.
+// Checkered-flag strip — alternating black/white squares in `rows` rows,
+// offset per row so it reads as a finish-line flag. Pure flexbox (takumi-safe).
+function CheckerStrip({
+	width,
+	square = 10,
+	rows = 2,
+}: {
+	width: number;
+	square?: number;
+	rows?: number;
+}) {
+	const cols = Math.ceil(width / square);
+	return (
+		<div
+			style={{
+				display: "flex",
+				flexDirection: "column",
+				width,
+				height: square * rows,
+				overflow: "hidden",
+			}}
+		>
+			{Array.from({ length: rows }).map((_, r) => (
+				<div
+					key={`r${r}`}
+					style={{ display: "flex", flexDirection: "row", height: square }}
+				>
+					{Array.from({ length: cols }).map((_, c) => (
+						<div
+							key={`c${c}`}
+							style={{
+								display: "flex",
+								flex: "none",
+								width: square,
+								height: square,
+								backgroundColor: (r + c) % 2 === 0 ? "#000" : "#fff",
+							}}
+						/>
+					))}
+				</div>
+			))}
+		</div>
+	);
+}
+
+// Soccer-ball mark (white, for the black masthead): outline circle, a filled
+// center pentagon, and spokes to the rim. SVG children grouped in <g>.
+function BallMark({ size = 30 }: { size?: number }) {
+	return (
+		<svg
+			width={size}
+			height={size}
+			viewBox="0 0 32 32"
+			xmlns="http://www.w3.org/2000/svg"
+			role="img"
+			aria-label="football"
+		>
+			<title>football</title>
+			<g fill="none" stroke="#fff" strokeWidth={2} strokeLinejoin="round">
+				<circle cx="16" cy="16" r="13" />
+				<path d="M16 8 L22 12.5 L19.7 19.5 L12.3 19.5 L10 12.5 Z" fill="#fff" />
+				<path d="M16 8 L16 3 M22 12.5 L26.5 10.5 M19.7 19.5 L23 24.5 M12.3 19.5 L9 24.5 M10 12.5 L5.5 10.5" />
+			</g>
+		</svg>
+	);
+}
+
 function Masthead({ title, dateLabel }: { title: string; dateLabel: string }) {
 	return (
 		<div
@@ -51,7 +116,7 @@ function Masthead({ title, dateLabel }: { title: string; dateLabel: string }) {
 				flexDirection: "row",
 				alignItems: "center",
 				justifyContent: "space-between",
-				height: 74,
+				height: 66,
 				backgroundColor: "#000",
 				color: "#fff",
 				padding: `0 ${SIDE}px`,
@@ -61,18 +126,15 @@ function Masthead({ title, dateLabel }: { title: string; dateLabel: string }) {
 			<div
 				style={{ display: "flex", flexDirection: "row", alignItems: "center" }}
 			>
-				<div
-					style={{
-						display: "flex",
-						width: 14,
-						height: 14,
-						backgroundColor: "#fff",
-						marginRight: 14,
-					}}
-				/>
+				<BallMark size={30} />
 				<div
 					className="font-blockKie"
-					style={{ display: "flex", fontSize: 34, letterSpacing: 2 }}
+					style={{
+						display: "flex",
+						fontSize: 32,
+						letterSpacing: 2,
+						marginLeft: 16,
+					}}
 				>
 					{title}
 				</div>
@@ -98,7 +160,7 @@ export default function WorldCup({
 	width = DEFAULT_IMAGE_WIDTH,
 	height = DEFAULT_IMAGE_HEIGHT,
 }: WorldCupProps) {
-	// ----- empty / error state — masthead + centered message. -----
+	// ----- empty / error state — framed masthead + centered message. -----
 	if (message || matches.length === 0) {
 		return (
 			<PreSatori width={width} height={height}>
@@ -112,6 +174,7 @@ export default function WorldCup({
 						color: "#000",
 					}}
 				>
+					<CheckerStrip width={width} />
 					<Masthead title={title} dateLabel={dateLabel} />
 					<div
 						style={{
@@ -129,6 +192,7 @@ export default function WorldCup({
 							{message || "No matches scheduled."}
 						</div>
 					</div>
+					<CheckerStrip width={width} />
 				</div>
 			</PreSatori>
 		);
@@ -146,6 +210,7 @@ export default function WorldCup({
 					color: "#000",
 				}}
 			>
+				<CheckerStrip width={width} />
 				<Masthead title={title} dateLabel={dateLabel} />
 
 				{/* ================= match rows ================= */}
@@ -153,6 +218,7 @@ export default function WorldCup({
 					{matches.map((m, i) => {
 						const isPre = m.state === "pre";
 						const fg = m.live ? "#fff" : "#000";
+						const scoreSize = m.live ? 40 : isPre ? 22 : 34;
 						return (
 							<div
 								key={`${m.home}-${m.away}-${i}`}
@@ -217,9 +283,9 @@ export default function WorldCup({
 										className="font-blockKie"
 										style={{
 											display: "flex",
-											width: 124,
+											width: 140,
 											justifyContent: "center",
-											fontSize: isPre ? 22 : 36,
+											fontSize: scoreSize,
 											color: fg,
 										}}
 									>
@@ -239,25 +305,45 @@ export default function WorldCup({
 									</div>
 								</div>
 
-								{/* status, right-aligned */}
+								{/* status: live = white chip (black text), else plain */}
 								<div
 									style={{
 										display: "flex",
-										width: 120,
+										width: 132,
 										justifyContent: "flex-end",
+										alignItems: "center",
 									}}
 								>
-									<div
-										className="font-geneva9"
-										style={{
-											display: "flex",
-											fontSize: 17,
-											color: fg,
-											...LABEL,
-										}}
-									>
-										{m.live ? `LIVE ${m.detail}`.trim() : m.detail}
-									</div>
+									{m.live ? (
+										<div
+											style={{
+												display: "flex",
+												alignItems: "center",
+												backgroundColor: "#fff",
+												color: "#000",
+												padding: "3px 11px",
+											}}
+										>
+											<div
+												className="font-geneva9"
+												style={{ display: "flex", fontSize: 16, ...LABEL }}
+											>
+												{`LIVE ${m.detail}`.trim()}
+											</div>
+										</div>
+									) : (
+										<div
+											className="font-geneva9"
+											style={{
+												display: "flex",
+												fontSize: 17,
+												color: fg,
+												...LABEL,
+											}}
+										>
+											{m.detail}
+										</div>
+									)}
 								</div>
 							</div>
 						);
@@ -271,7 +357,7 @@ export default function WorldCup({
 						flexDirection: "row",
 						alignItems: "center",
 						justifyContent: "space-between",
-						height: 30,
+						height: 28,
 						padding: `0 ${SIDE}px`,
 						borderTop: "2px solid #000",
 					}}
@@ -289,6 +375,7 @@ export default function WorldCup({
 						{updatedLabel ? `UPDATED ${updatedLabel} · ESPN` : "ESPN"}
 					</div>
 				</div>
+				<CheckerStrip width={width} />
 			</div>
 		</PreSatori>
 	);
@@ -307,7 +394,7 @@ export const definition: RecipeDefinition<
 		tags: ["sports", "football", "soccer", "api", "live-data"],
 		author: { name: "byos", github: "byos" },
 		category: "display-components",
-		version: "0.2.1",
+		version: "0.3.0",
 		createdAt: "2026-06-25T00:00:00Z",
 		updatedAt: "2026-06-25T00:00:00Z",
 		renderSettings: { supersample: true },
