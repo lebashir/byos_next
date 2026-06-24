@@ -31,6 +31,66 @@ type WorldCupProps = Partial<WorldCupData> & {
 	height?: number;
 };
 
+const SIDE = 26;
+// Small-caps-ish treatment for the pixel label font.
+const LABEL = { letterSpacing: 2 } as const;
+
+function updatedLabel(): string {
+	return new Intl.DateTimeFormat("en-GB", {
+		timeZone: "Asia/Dubai",
+		hour: "2-digit",
+		minute: "2-digit",
+		hour12: false,
+	}).format(new Date());
+}
+
+// Inverted masthead: a solid black bar with a white logo mark, title, and date.
+function Masthead({ title, dateLabel }: { title: string; dateLabel: string }) {
+	return (
+		<div
+			style={{
+				display: "flex",
+				flexDirection: "row",
+				alignItems: "center",
+				justifyContent: "space-between",
+				height: 74,
+				backgroundColor: "#000",
+				color: "#fff",
+				padding: `0 ${SIDE}px`,
+				borderBottom: "2px solid #fff",
+			}}
+		>
+			<div
+				style={{ display: "flex", flexDirection: "row", alignItems: "center" }}
+			>
+				<div
+					style={{
+						display: "flex",
+						width: 14,
+						height: 14,
+						backgroundColor: "#fff",
+						marginRight: 14,
+					}}
+				/>
+				<div
+					className="font-blockKie"
+					style={{ display: "flex", fontSize: 34, letterSpacing: 2 }}
+				>
+					{title}
+				</div>
+			</div>
+			{dateLabel ? (
+				<div
+					className="font-geneva9"
+					style={{ display: "flex", fontSize: 17, ...LABEL }}
+				>
+					{dateLabel}
+				</div>
+			) : null}
+		</div>
+	);
+}
+
 export default function WorldCup({
 	title = "FIFA WORLD CUP",
 	dateLabel = "",
@@ -39,93 +99,61 @@ export default function WorldCup({
 	width = DEFAULT_IMAGE_WIDTH,
 	height = DEFAULT_IMAGE_HEIGHT,
 }: WorldCupProps) {
-	const PAD = 28;
-
-	// ----- empty / error state — centered message. -----
+	// ----- empty / error state — masthead + centered message. -----
 	if (message || matches.length === 0) {
 		return (
 			<PreSatori width={width} height={height}>
 				<div
-					className="bg-white text-black font-blockKie"
 					style={{
 						display: "flex",
 						flexDirection: "column",
 						width,
 						height,
-						alignItems: "center",
-						justifyContent: "center",
-						padding: 40,
-						textAlign: "center",
+						backgroundColor: "#fff",
+						color: "#000",
 					}}
 				>
-					<div style={{ display: "flex", fontSize: 30, letterSpacing: 2 }}>
-						{title}
-					</div>
+					<Masthead title={title} dateLabel={dateLabel} />
 					<div
-						className="font-inter"
-						style={{ display: "flex", fontSize: 24, marginTop: 18 }}
+						style={{
+							display: "flex",
+							flex: 1,
+							alignItems: "center",
+							justifyContent: "center",
+							padding: 40,
+						}}
 					>
-						{message || "No matches scheduled."}
+						<div
+							className="font-blockKie"
+							style={{ display: "flex", fontSize: 26, textAlign: "center" }}
+						>
+							{message || "No matches scheduled."}
+						</div>
 					</div>
 				</div>
 			</PreSatori>
 		);
 	}
 
-	const rowH = Math.floor(
-		(height - PAD * 2 - 64) / Math.max(matches.length, 1),
-	);
-
 	return (
 		<PreSatori width={width} height={height}>
 			<div
-				className="bg-white text-black"
 				style={{
 					display: "flex",
 					flexDirection: "column",
 					width,
 					height,
-					boxSizing: "border-box",
-					padding: PAD,
+					backgroundColor: "#fff",
+					color: "#000",
 				}}
 			>
-				{/* ============ header ============ */}
-				<div
-					style={{
-						display: "flex",
-						alignItems: "baseline",
-						justifyContent: "space-between",
-					}}
-				>
-					<div
-						className="font-blockKie"
-						style={{ display: "flex", fontSize: 34, letterSpacing: 2 }}
-					>
-						{title}
-					</div>
-					{dateLabel ? (
-						<div
-							className="font-inter"
-							style={{ display: "flex", fontSize: 20, letterSpacing: 1 }}
-						>
-							{dateLabel}
-						</div>
-					) : null}
-				</div>
-				<div
-					style={{
-						display: "flex",
-						height: 5,
-						backgroundColor: "#000",
-						marginTop: 8,
-						marginBottom: 4,
-					}}
-				/>
+				<Masthead title={title} dateLabel={dateLabel} />
 
-				{/* ============ match rows ============ */}
+				{/* ================= match rows ================= */}
 				<div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
 					{matches.map((m, i) => {
 						const isPre = m.state === "pre";
+						const fg = m.live ? "#fff" : "#000";
 						return (
 							<div
 								key={`${m.home}-${m.away}-${i}`}
@@ -133,36 +161,55 @@ export default function WorldCup({
 									display: "flex",
 									flexDirection: "row",
 									alignItems: "center",
-									justifyContent: "space-between",
-									height: rowH,
+									flex: 1,
+									padding: `0 ${SIDE}px`,
+									backgroundColor: m.live ? "#000" : "#fff",
+									color: fg,
 									borderBottom:
-										i === matches.length - 1 ? "none" : "2px solid #000",
+										i === matches.length - 1
+											? "none"
+											: `1.5px solid ${m.live ? "#fff" : "#000"}`,
 								}}
 							>
-								{/* live marker + scoreline */}
+								{/* live dot */}
 								<div
 									style={{
 										display: "flex",
+										width: 22,
+										justifyContent: "flex-start",
+									}}
+								>
+									{m.live ? (
+										<div
+											style={{
+												display: "flex",
+												width: 12,
+												height: 12,
+												borderRadius: 6,
+												backgroundColor: "#fff",
+											}}
+										/>
+									) : null}
+								</div>
+
+								{/* centered matchup: HOME  S – S  AWAY */}
+								<div
+									style={{
+										display: "flex",
+										flex: 1,
 										flexDirection: "row",
 										alignItems: "center",
+										justifyContent: "center",
 									}}
 								>
 									<div
-										style={{
-											display: "flex",
-											width: 14,
-											height: 14,
-											marginRight: 12,
-											backgroundColor: m.live ? "#000" : "#fff",
-										}}
-									/>
-									<div
-										className="font-inter"
+										className="font-blockKie"
 										style={{
 											display: "flex",
 											width: 92,
 											justifyContent: "flex-end",
 											fontSize: 28,
+											color: fg,
 										}}
 									>
 										{m.home}
@@ -171,57 +218,77 @@ export default function WorldCup({
 										className="font-blockKie"
 										style={{
 											display: "flex",
-											width: 104,
+											width: 124,
 											justifyContent: "center",
-											fontSize: isPre ? 22 : 30,
+											fontSize: isPre ? 22 : 36,
+											color: fg,
 										}}
 									>
 										{isPre ? "vs" : `${m.homeScore} – ${m.awayScore}`}
 									</div>
 									<div
-										className="font-inter"
+										className="font-blockKie"
 										style={{
 											display: "flex",
 											width: 92,
 											justifyContent: "flex-start",
 											fontSize: 28,
+											color: fg,
 										}}
 									>
 										{m.away}
 									</div>
 								</div>
 
-								{/* status: live = inverted pill, else plain */}
-								{m.live ? (
+								{/* status, right-aligned */}
+								<div
+									style={{
+										display: "flex",
+										width: 120,
+										justifyContent: "flex-end",
+									}}
+								>
 									<div
-										className="font-inter"
+										className="font-geneva9"
 										style={{
 											display: "flex",
-											alignItems: "center",
-											backgroundColor: "#000",
-											color: "#fff",
-											padding: "4px 12px",
-											fontSize: 20,
-											letterSpacing: 1,
+											fontSize: 17,
+											color: fg,
+											...LABEL,
 										}}
 									>
-										{`LIVE ${m.detail}`.trim()}
+										{m.live ? `LIVE ${m.detail}`.trim() : m.detail}
 									</div>
-								) : (
-									<div
-										className="font-inter"
-										style={{
-											display: "flex",
-											fontSize: 20,
-											letterSpacing: 1,
-										}}
-									>
-										{m.detail}
-									</div>
-								)}
+								</div>
 							</div>
 						);
 					})}
+				</div>
+
+				{/* ================= colophon ================= */}
+				<div
+					style={{
+						display: "flex",
+						flexDirection: "row",
+						alignItems: "center",
+						justifyContent: "space-between",
+						height: 30,
+						padding: `0 ${SIDE}px`,
+						borderTop: "2px solid #000",
+					}}
+				>
+					<div
+						className="font-geneva9"
+						style={{ display: "flex", fontSize: 15, ...LABEL }}
+					>
+						LIVE SCORES
+					</div>
+					<div
+						className="font-geneva9"
+						style={{ display: "flex", fontSize: 15, ...LABEL }}
+					>
+						{`UPDATED ${updatedLabel()} · ESPN`}
+					</div>
 				</div>
 			</div>
 		</PreSatori>
@@ -241,7 +308,7 @@ export const definition: RecipeDefinition<
 		tags: ["sports", "football", "soccer", "api", "live-data"],
 		author: { name: "byos", github: "byos" },
 		category: "display-components",
-		version: "0.1.0",
+		version: "0.2.0",
 		createdAt: "2026-06-25T00:00:00Z",
 		updatedAt: "2026-06-25T00:00:00Z",
 		renderSettings: { supersample: true },
