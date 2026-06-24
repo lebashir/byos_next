@@ -42,6 +42,8 @@ export const reactRecipeLoaders: Record<string, RecipeModuleLoader> = {
 		import("../../app/(app)/recipes/screens/wikipedia/wikipedia"),
 	"world-clock": () =>
 		import("../../app/(app)/recipes/screens/world-clock/world-clock"),
+	"world-cup": () =>
+		import("../../app/(app)/recipes/screens/world-cup/world-cup"),
 };
 
 export const reactRecipeSlugs = [
@@ -65,6 +67,7 @@ export const reactRecipeSlugs = [
 	"whos-that-pokemon",
 	"wikipedia",
 	"world-clock",
+	"world-cup",
 ] as const;
 
 export type ReactRecipeSlug = (typeof reactRecipeSlugs)[number];
