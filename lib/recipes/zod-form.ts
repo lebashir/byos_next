@@ -7,7 +7,9 @@ import { z } from "zod";
  * sources (e.g. liquid plugin custom_fields) without coupling the form to
  * Zod's internals.
  */
-export type RecipeParamType = "string" | "number" | "boolean";
+export type RecipeParamType = "string" | "number" | "boolean" | "enum";
+
+export type RecipeParamOption = { value: string; label: string };
 
 export type RecipeParamDefinition = {
 	label: string;
@@ -15,6 +17,8 @@ export type RecipeParamDefinition = {
 	description?: string;
 	default?: unknown;
 	placeholder?: string;
+	/** Selectable options, present only when `type === "enum"`. */
+	options?: RecipeParamOption[];
 };
 
 export type RecipeParamDefinitions = Record<string, RecipeParamDefinition>;
@@ -22,6 +26,8 @@ export type RecipeParamDefinitions = Record<string, RecipeParamDefinition>;
 type FieldMeta = {
 	title?: string;
 	placeholder?: string;
+	/** Optional value→label map for enum fields, set via `.meta({ options })`. */
+	options?: Record<string, string>;
 };
 
 type ZodInternals = {
@@ -65,7 +71,26 @@ function detectFieldType(schema: z.ZodTypeAny): RecipeParamType | null {
 	if (t === "string") return "string";
 	if (t === "number") return "number";
 	if (t === "boolean") return "boolean";
+	if (t === "enum") return "enum";
 	return null;
+}
+
+/**
+ * Extract the literal option values from a `z.enum([...])`, looking past
+ * optional/default wrappers. Prefers the public `.options` array, falling
+ * back to the internal `def.entries` value map.
+ */
+function readEnumValues(schema: z.ZodTypeAny): string[] {
+	const base = unwrapToBaseType(schema) as unknown as {
+		options?: unknown;
+		_zod?: { def?: { entries?: Record<string, unknown> } };
+	};
+	if (Array.isArray(base.options)) return base.options.map(String);
+	const entries = base._zod?.def?.entries;
+	if (entries && typeof entries === "object") {
+		return Object.values(entries).map(String);
+	}
+	return [];
 }
 
 /**
@@ -135,6 +160,14 @@ export function zodObjectToParamDefinitions(
 		const description = readDescription(fieldSchema);
 		const defaultValue = readDefault(fieldSchema);
 
+		const options =
+			type === "enum"
+				? readEnumValues(fieldSchema).map((value) => ({
+						value,
+						label: meta.options?.[value] ?? humanizeKey(value),
+					}))
+				: undefined;
+
 		definitions[key] = {
 			label: meta.title ?? humanizeKey(key),
 			type,
@@ -143,6 +176,7 @@ export function zodObjectToParamDefinitions(
 			...(meta.placeholder !== undefined
 				? { placeholder: meta.placeholder }
 				: {}),
+			...(options && options.length > 0 ? { options } : {}),
 		};
 	}
 

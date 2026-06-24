@@ -9,21 +9,39 @@ export const reactRecipeLoaders: Record<string, RecipeModuleLoader> = {
 	"bitmap-patterns": () =>
 		import("../../app/(app)/recipes/screens/bitmap-patterns/bitmap-patterns"),
 	calendar: () => import("../../app/(app)/recipes/screens/calendar/calendar"),
+	f1: () => import("../../app/(app)/recipes/screens/f1/f1"),
 	"hacker-news": () =>
 		import("../../app/(app)/recipes/screens/hacker-news/hacker-news"),
 	"local-news": () =>
 		import("../../app/(app)/recipes/screens/local-news/local-news"),
+	"nasa-apod": () =>
+		import("../../app/(app)/recipes/screens/nasa-apod/nasa-apod"),
+	"night-sky": () =>
+		import("../../app/(app)/recipes/screens/night-sky/night-sky"),
 	"not-found": () =>
 		import("../../app/(app)/recipes/screens/not-found/not-found"),
+	pokedex: () => import("../../app/(app)/recipes/screens/pokedex/pokedex"),
 	"responsive-example": () =>
 		import(
 			"../../app/(app)/recipes/screens/responsive-example/responsive-example"
 		),
+	"shan-shui": () =>
+		import("../../app/(app)/recipes/screens/shan-shui/shan-shui"),
 	"simple-text": () =>
 		import("../../app/(app)/recipes/screens/simple-text/simple-text"),
+	triangles: () =>
+		import("../../app/(app)/recipes/screens/triangles/triangles"),
 	weather: () => import("../../app/(app)/recipes/screens/weather/weather"),
+	"weather-glance": () =>
+		import("../../app/(app)/recipes/screens/weather-glance/weather-glance"),
+	"whos-that-pokemon": () =>
+		import(
+			"../../app/(app)/recipes/screens/whos-that-pokemon/whos-that-pokemon"
+		),
 	wikipedia: () =>
 		import("../../app/(app)/recipes/screens/wikipedia/wikipedia"),
+	"world-clock": () =>
+		import("../../app/(app)/recipes/screens/world-clock/world-clock"),
 };
 
 export const reactRecipeSlugs = [
@@ -31,13 +49,22 @@ export const reactRecipeSlugs = [
 	"bitcoin-price",
 	"bitmap-patterns",
 	"calendar",
+	"f1",
 	"hacker-news",
 	"local-news",
+	"nasa-apod",
+	"night-sky",
 	"not-found",
+	"pokedex",
 	"responsive-example",
+	"shan-shui",
 	"simple-text",
+	"triangles",
 	"weather",
+	"weather-glance",
+	"whos-that-pokemon",
 	"wikipedia",
+	"world-clock",
 ] as const;
 
 export type ReactRecipeSlug = (typeof reactRecipeSlugs)[number];
